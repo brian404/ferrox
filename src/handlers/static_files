@@ -1,0 +1,134 @@
+use anyhow::Result;
+use bytes::Bytes;
+use http_body_util::Full;
+use hyper::body::Incoming;
+use hyper::header;
+use hyper::{Request, Response, StatusCode};
+use mime_guess::from_path;
+use std::path::{Path, PathBuf};
+use tokio::fs::File;
+use tokio::io::AsyncReadExt;
+
+const PUBLIC_DIR: &str = "public";
+
+pub async fn serve_static(req: Request<Incoming>) -> Result<Response<Full<Bytes>>, hyper::Error> {
+    let path = req.uri().path();
+
+    // hyper does NOT percent-decode req.uri().path(), so a literal ".."
+    // segment (e.g. "/../Cargo.toml") is the only way this can be
+    // attempted, and this check catches it before we ever touch the
+    // filesystem.
+    if contains_dotdot(path) {
+        tracing::warn!("Rejected path traversal attempt: {}", path);
+        return Ok(not_found_page().await);
+    }
+
+    let subpath = path.trim_start_matches('/');
+
+    let mut file_path = if path == "/" || path.is_empty() {
+        PathBuf::from(PUBLIC_DIR).join("index.html")
+    } else {
+        PathBuf::from(PUBLIC_DIR).join(subpath)
+    };
+
+    let mut file = open_within_public(&file_path).await;
+
+    if file.is_none() && looks_like_spa_route(subpath) {
+        tracing::debug!("SPA fallback: serving index.html for path {}", path);
+        file_path = PathBuf::from(PUBLIC_DIR).join("index.html");
+        file = open_within_public(&file_path).await;
+    }
+
+    let mut file: File = match file {
+        Some(f) => f,
+        None => return Ok(not_found_page().await),
+    };
+
+    let mut contents = Vec::new();
+    if let Err(e) = file.read_to_end(&mut contents).await {
+        tracing::error!("Failed to read file {}: {}", file_path.display(), e);
+        return Ok(internal_error());
+    }
+
+    let mime_type = from_path(&file_path).first_or_octet_stream().to_string();
+
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, mime_type)
+        .header(header::CONTENT_LENGTH, contents.len() as u64)
+        .header(header::CACHE_CONTROL, cache_control_for(&file_path))
+        .body(Full::from(Bytes::from(contents)))
+        .unwrap();
+
+    Ok(crate::headers::add_common_headers(response))
+}
+
+/// Opens `candidate` only if it resolves (after following symlinks) to
+/// somewhere inside `PUBLIC_DIR`. This is the actual traversal guard:
+/// the ".." check above stops the obvious case, this stops the rest
+/// (e.g. a symlink inside public/ pointing outside of it).
+async fn open_within_public(candidate: &Path) -> Option<File> {
+    let public_root = match tokio::fs::canonicalize(PUBLIC_DIR).await {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::error!("Cannot resolve public dir '{}': {}", PUBLIC_DIR, e);
+            return None;
+        }
+    };
+
+    let file = File::open(candidate).await.ok()?;
+
+    match tokio::fs::canonicalize(candidate).await {
+        Ok(resolved) if resolved.starts_with(&public_root) => Some(file),
+        Ok(resolved) => {
+            tracing::warn!(
+                "Blocked request resolving outside public dir: {} -> {}",
+                candidate.display(),
+                resolved.display()
+            );
+            None
+        }
+        Err(_) => None,
+    }
+}
+
+fn contains_dotdot(path: &str) -> bool {
+    path.split('/').any(|segment| segment == "..")
+}
+
+fn looks_like_spa_route(subpath: &str) -> bool {
+    !subpath.contains('.') && !subpath.ends_with('/')
+}
+
+fn cache_control_for(path: &Path) -> &'static str {
+    match path.extension().and_then(|e| e.to_str()) {
+        // Fingerprint your JS/CSS filenames (e.g. app.a1b2c3.js) if you
+        // want to safely bump this to a much longer max-age later.
+        Some("css") | Some("js") | Some("png") | Some("jpg") | Some("jpeg") | Some("gif")
+        | Some("svg") | Some("woff") | Some("woff2") | Some("ico") => "public, max-age=3600",
+        _ => "no-cache",
+    }
+}
+
+async fn not_found_page() -> Response<Full<Bytes>> {
+    match tokio::fs::read(PathBuf::from(PUBLIC_DIR).join("404.html")).await {
+        Ok(contents) => Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+            .body(Full::from(Bytes::from(contents)))
+            .unwrap(),
+        Err(_) => Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .header(header::CONTENT_TYPE, "text/plain")
+            .body(Full::from(Bytes::from("Not Found")))
+            .unwrap(),
+    }
+}
+
+fn internal_error() -> Response<Full<Bytes>> {
+    Response::builder()
+        .status(StatusCode::INTERNAL_SERVER_ERROR)
+        .header(header::CONTENT_TYPE, "text/plain")
+        .body(Full::from(Bytes::from("Internal Server Error")))
+        .unwrap()
+}
