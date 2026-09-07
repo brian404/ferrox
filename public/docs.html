@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ferrox — documentation</title>
+  <meta name="description" content="ferrox documentation — routes, security, performance, deployment">
+  <link rel="icon" href="/assets/favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --base:      #0d0f12;
+      --panel:     #14171b;
+      --panel-2:   #191d22;
+      --iron:      #333941;
+      --iron-dim:  #21252a;
+      --rust:      #c05621;
+      --ember:     #d9824f;
+      --text:      #e6e8eb;
+      --text-dim:  #99a1a9;
+      --text-faint:#5c636b;
+      --code-bg:   #14171b;
+      --token-string:   #8bb37a;
+      --token-key:      #d99a6c;
+      --token-number:   #d4a373;
+      --token-function: #7fa8c9;
+      --token-comment:  #5c636b;
+      --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--base);
+      background-image:
+        radial-gradient(ellipse 900px 500px at 15% -10%, rgba(192, 86, 33, 0.06), transparent 60%);
+      color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.65;
+    }
+
+    .wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem 6rem;
+    }
+
+    a { color: var(--ember); }
+    a:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; }
+
+    nav.top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2.5rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--iron-dim);
+    }
+
+    .back {
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      text-decoration: none;
+    }
+    .back:hover { color: var(--text); }
+
+    .wordmark {
+      font-family: var(--mono);
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .wordmark span { color: var(--rust); }
+
+    h1 {
+      font-family: var(--mono);
+      font-size: clamp(1.55rem, 4vw, 2rem);
+      font-weight: 600;
+      margin: 0 0 0.5rem;
+    }
+
+    .lede {
+      color: var(--text-dim);
+      font-size: 1.01rem;
+      max-width: 56ch;
+      margin: 0 0 2.5rem;
+    }
+
+    .toc {
+      background: var(--panel);
+      border: 1px solid var(--iron-dim);
+      border-radius: 10px;
+      padding: 1.1rem 1.3rem;
+      margin-bottom: 3rem;
+    }
+
+    .toc p.eyebrow { margin-top: 0; }
+
+    .toc ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      columns: 2;
+      gap: 1rem;
+    }
+    .toc li { margin-bottom: 0.5rem; break-inside: avoid; }
+    .toc a {
+      font-family: var(--mono);
+      font-size: 0.87rem;
+      text-decoration: none;
+      color: var(--text-dim);
+    }
+    .toc a:hover { color: var(--ember); }
+
+    section { margin: 3rem 0; scroll-margin-top: 1.5rem; }
+
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 0.76rem;
+      letter-spacing: 0.1em;
+      color: var(--rust);
+      text-transform: uppercase;
+      margin: 0 0 0.6rem;
+    }
+
+    h2 {
+      font-family: var(--mono);
+      font-size: 1.22rem;
+      font-weight: 600;
+      margin: 0 0 0.9rem;
+    }
+
+    h3 {
+      font-family: var(--mono);
+      font-size: 0.98rem;
+      font-weight: 600;
+      color: var(--text);
+      margin: 1.6rem 0 0.6rem;
+    }
+
+    p { color: var(--text-dim); margin: 0 0 1rem; }
+
+    ul.plain { margin: 0 0 1rem; padding-left: 1.3rem; color: var(--text-dim); }
+    ul.plain li { margin-bottom: 0.5rem; }
+    ul.plain b { color: var(--text); font-weight: 500; }
+
+    code {
+      font-family: var(--mono);
+      background: var(--code-bg);
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+      font-size: 0.9em;
+      color: #dfe3e6;
+    }
+
+    pre {
+      background: var(--panel);
+      border: 1px solid var(--iron-dim);
+      border-radius: 8px;
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      margin: 0 0 1.1rem;
+    }
+    pre code {
+      background: none;
+      padding: 0;
+      font-size: 0.83rem;
+      line-height: 1.6;
+      color: var(--text);
+      white-space: pre;
+    }
+
+    /* Custom syntax-highlighting theme, matched to the page palette
+       instead of a stock Prism theme. */
+    .token.comment,
+    .token.prolog,
+    .token.doctype,
+    .token.cdata {
+      color: var(--token-comment);
+      font-style: italic;
+    }
+    .token.punctuation { color: var(--text-dim); }
+    .token.property,
+    .token.tag,
+    .token.constant,
+    .token.symbol,
+    .token.key,
+    .token.attr-name {
+      color: var(--token-key);
+    }
+    .token.boolean,
+    .token.number { color: var(--token-number); }
+    .token.selector,
+    .token.attr-value,
+    .token.string,
+    .token.char,
+    .token.builtin,
+    .token.value {
+      color: var(--token-string);
+    }
+    .token.operator,
+    .token.entity,
+    .token.url { color: var(--text-dim); }
+    .token.atrule,
+    .token.keyword { color: var(--ember); }
+    .token.function,
+    .token.class-name { color: var(--token-function); }
+    .token.regex,
+    .token.important,
+    .token.variable { color: var(--ember); }
+    .token.section {
+      color: var(--rust);
+      font-weight: 600;
+    }
+
+    table.routes-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      margin: 0 0 1.2rem;
+    }
+    .routes-table tr { border-bottom: 1px solid var(--iron-dim); }
+    .routes-table tr:last-child { border-bottom: none; }
+    .routes-table td { padding: 0.75rem 0.5rem; vertical-align: top; }
+    .method {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--rust);
+      white-space: nowrap;
+      padding-right: 1rem;
+    }
+    .path {
+      font-family: var(--mono);
+      color: var(--text);
+      white-space: nowrap;
+      padding-right: 1rem;
+    }
+    .desc { color: var(--text-dim); }
+
+    .note {
+      border-left: 3px solid var(--iron);
+      padding: 0.1rem 0 0.1rem 1rem;
+      color: var(--text-dim);
+      font-size: 0.94rem;
+      margin: 0 0 1.1rem;
+    }
+
+    footer {
+      margin-top: 4rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--iron-dim);
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--text-faint);
+    }
+    footer a { color: var(--text-faint); }
+
+    @media (max-width: 560px) {
+      .wrap { padding: 2.25rem 1.25rem 4rem; }
+      .toc ul { columns: 1; }
+      .routes-table .desc { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav class="top">
+      <a class="back" href="/">← ferrox</a>
+      <div class="wordmark">fer<span>rox</span> docs</div>
+    </nav>
+
+    <h1>Documentation</h1>
+    <p class="lede">A lightweight, single-binary HTTP server written in Rust on tokio and hyper. This page covers what it does, how it's secured, and how to run it.</p>
+
+    <div class="toc">
+      <p class="eyebrow">Contents</p>
+      <ul>
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#routes">Routes</a></li>
+        <li><a href="#security">Security</a></li>
+        <li><a href="#performance">Performance &amp; reliability</a></li>
+        <li><a href="#websocket">WebSocket proxying</a></li>
+        <li><a href="#configuration">Configuration</a></li>
+        <li><a href="#testing">Testing</a></li>
+        <li><a href="#deployment">Deployment</a></li>
+        <li><a href="#maintenance">Maintenance</a></li>
+      </ul>
+    </div>
+
+    <section id="overview">
+      <p class="eyebrow">Overview</p>
+      <h2>What ferrox is</h2>
+      <p>ferrox serves static files, proxies <code>/api</code> to a configurable backend (including WebSocket upgrades), and does both with the safety checks a real server needs: path traversal protection, request size limits, method gating, and a Slowloris mitigation - all hand-built on top of <code>tokio</code> and <code>hyper 1.x</code>, with no web framework in between.</p>
+    </section>
+
+    <section id="routes">
+      <p class="eyebrow">Routes</p>
+      <h2>What's exposed</h2>
+      <table class="routes-table">
+        <tbody>
+          <tr><td class="method">GET</td><td class="path">/</td><td class="desc">Status page</td></tr>
+          <tr><td class="method">GET, HEAD</td><td class="path">/health</td><td class="desc">Returns 200 if the server is up</td></tr>
+          <tr><td class="method">GET, HEAD</td><td class="path">/hello</td><td class="desc">Plain-text response, useful for smoke tests</td></tr>
+          <tr><td class="method">any</td><td class="path">/api/*</td><td class="desc">Reverse-proxied to the configured upstream, including WebSocket upgrades</td></tr>
+          <tr><td class="method">GET, HEAD</td><td class="path">/*</td><td class="desc">Static files served from <code>./public</code></td></tr>
+        </tbody>
+      </table>
+      <p><code>TRACE</code> is rejected everywhere with <code>405</code> - it has no legitimate use here and has a history of enabling cross-site tracing attacks in browsers. Every other method not listed above on a given route also returns <code>405</code>, except <code>/api/*</code>, which stays permissive since it's a transparent proxy to a backend that may implement its own methods.</p>
+    </section>
+
+    <section id="security">
+      <p class="eyebrow">Security</p>
+      <h2>What's actually enforced</h2>
+
+      <h3>Path traversal</h3>
+      <p>Any request path containing a literal <code>..</code> segment is rejected outright. As defense in depth, every resolved file path is canonicalized and checked against the canonicalized public root before being served - this also catches symlink-based escapes, not just literal <code>../</code> sequences.</p>
+
+      <h3>Request body limits</h3>
+      <p>Requests through <code>/api</code> are capped at 10&nbsp;MB. A declared <code>Content-Length</code> over the limit is rejected immediately with <code>413</code>, before any of the body is read. As defense in depth against chunked-encoding bodies with no declared length, the body is also streamed through a byte-counter that aborts if the real size exceeds the limit regardless of what was claimed.</p>
+
+      <h3>Slowloris mitigation</h3>
+      <p>Every connection is wrapped in a read-stall timeout: if no bytes arrive for 30 seconds, the connection is closed. The timer resets on any progress, so a genuinely slow-but-active client (a real upload on a bad connection, a WebSocket exchanging periodic frames) is unaffected - only a connection making no progress at all gets cut. This is a first-layer mitigation, not a complete one: it doesn't enforce a minimum throughput, only that <em>something</em> arrives periodically.</p>
+
+      <h3>Startup checks</h3>
+      <p>ferrox checks that its public directory actually exists before binding a socket or accepting any connections, failing fast with a clear error rather than panicking on the first request if the working directory is wrong.</p>
+
+      <h3>Response headers</h3>
+      <p>Every response - including error responses - carries <code>X-Content-Type-Options: nosniff</code>, <code>X-Frame-Options: DENY</code>, <code>X-XSS-Protection</code>, and <code>Referrer-Policy: strict-origin-when-cross-origin</code>.</p>
+    </section>
+
+    <section id="performance">
+      <p class="eyebrow">Performance &amp; reliability</p>
+      <h2>How it stays fast</h2>
+
+      <h3>In-memory caching</h3>
+      <p>Files under 5&nbsp;MB are cached in memory after their first request, keyed by resolved path. Cache entries are invalidated by comparing the file's modification time on every request - editing a file on disk is picked up immediately, with no restart or manual invalidation needed.</p>
+
+      <h3>Streaming for large files</h3>
+      <p>Files over the cache threshold are streamed directly from disk in fixed-size chunks rather than buffered fully into memory first, and are never cached. Memory use per request stays constant regardless of file size.</p>
+
+      <h3>HTTP Range requests</h3>
+      <p>Single-range <code>Range</code> requests (<code>bytes=0-99</code>, <code>bytes=500-</code>, <code>bytes=-100</code>) are supported and return <code>206 Partial Content</code> with a correct <code>Content-Range</code> header, for both cached and streamed files. Multi-range requests fall back to a full <code>200</code> response; an out-of-bounds range returns <code>416</code>.</p>
+
+      <h3>Connection pooling</h3>
+      <p><code>/api</code> requests reuse persistent keep-alive connections to the upstream via a pooled HTTP client, instead of opening a fresh TCP connection per request.</p>
+
+      <h3>Graceful shutdown</h3>
+      <p>On <code>SIGINT</code> or <code>SIGTERM</code>, ferrox stops accepting new connections immediately but waits (up to 10 seconds) for in-flight requests to finish before exiting.</p>
+    </section>
+
+    <section id="websocket">
+      <p class="eyebrow">WebSocket proxying</p>
+      <h2>Transparent upgrade relay</h2>
+      <p>A request to <code>/api/*</code> with <code>Connection: Upgrade</code> and <code>Upgrade: websocket</code> is relayed to the configured upstream: ferrox performs the upgrade handshake on both legs, then pipes bytes bidirectionally between the client and the backend for the life of the connection.</p>
+    </section>
+
+    <section id="configuration">
+      <p class="eyebrow">Configuration</p>
+      <h2>ferrox.conf and overrides</h2>
+      <p>Configuration is a small TOML file:</p>
+      <pre><code class="language-toml">listen = "0.0.0.0:3000"
+proxy_upstream = "127.0.0.1:8000"</code></pre>
+      <p>If no config file exists at the resolved path, ferrox creates one with these defaults on first run.</p>
+
+      <h3>Resolution order</h3>
+      <ul class="plain">
+        <li><code>--config &lt;path&gt;</code> or <code>--config=&lt;path&gt;</code> command-line flag</li>
+        <li><code>FERROX_CONFIG</code> environment variable</li>
+        <li><code>./ferrox.conf</code> (default)</li>
+      </ul>
+      <p>An explicitly given path (flag or env var) that doesn't exist is treated as an error rather than silently auto-created - only the implicit default is auto-generated.</p>
+
+      <h3>Static root</h3>
+      <p>Set <code>FERROX_PUBLIC_DIR</code> to serve files from somewhere other than <code>./public</code>.</p>
+    </section>
+
+    <section id="testing">
+      <p class="eyebrow">Testing</p>
+      <h2>cargo test</h2>
+      <p>ferrox has both unit and integration test coverage:</p>
+      <ul class="plain">
+        <li><b>Unit tests</b> for pure logic with no I/O - Range header parsing, the path traversal guard - run in milliseconds.</li>
+        <li><b>Integration tests</b> spin up a real ferrox instance on an OS-assigned free port and exercise it with raw HTTP requests over a socket: routing, method gating, traversal, Range requests, the WebSocket relay, and the read-stall timeout are all verified end to end against actual running code, not mocked.</li>
+      </ul>
+      <pre><code class="language-bash">cargo test</code></pre>
+    </section>
+
+    <section id="deployment">
+      <p class="eyebrow">Deployment</p>
+      <h2>Running it for real</h2>
+
+      <h3>As a plain binary</h3>
+      <p>ferrox has no runtime dependency on Docker or anything else - a built binary, a <code>public/</code> directory, and an optional config file are all it needs.</p>
+      <pre><code class="language-bash">cargo build --release
+./target/release/ferrox</code></pre>
+
+      <h3>As a systemd service</h3>
+      <pre><code class="language-ini">[Unit]
+Description=ferrox web server
+After=network.target
+
+[Service]
+Type=simple
+User=ferrox
+WorkingDirectory=/opt/ferrox
+ExecStart=/opt/ferrox/ferrox
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+      <h3>Behind Caddy (TLS + rate limiting)</h3>
+      <p>A Caddy reverse proxy in front of ferrox handles automatic TLS via Let's Encrypt and, with the <code>mholt/caddy-ratelimit</code> plugin, per-IP rate limiting - both configured outside of ferrox itself, at the edge.</p>
+      <div class="note">A Docker Compose stack (ferrox + a custom Caddy build with the rate-limit plugin) is included in the repository for this, but Docker is optional - Caddy and its plugins install and run natively just as well.</div>
+    </section>
+
+    <section id="maintenance">
+      <p class="eyebrow">Maintenance</p>
+      <h2>Keeping dependencies honest</h2>
+      <p>Dependency vulnerabilities are checked with <code>cargo audit</code> against the RustSec advisory database - worth running after any dependency bump, not just occasionally.</p>
+      <pre><code class="language-bash">cargo audit</code></pre>
+    </section>
+
+    <footer>ferrox · single-binary Rust HTTP server · <a href="/">back to status page</a></footer>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-toml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-ini.min.js"></script>
+</body>
+</html>

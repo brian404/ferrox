@@ -3,93 +3,156 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>404 – Not Found | Ferrox</title>
+  <title>404 — ferrox</title>
+  <meta name="description" content="ferrox — page not found">
+  <link rel="icon" href="https://i.ibb.co/3yWbP8yH/IMG-20260821-172541-698.jpg" type="image/jpeg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg:        #f9fafb;
-      --text:      #1f2937;
-      --muted:     #6b7280;
-      --border:    #d1d5db;
-      --link:      #374151;
-      --link-hover:#111827;
+      --base:      #0d0f12;
+      --panel:     #14171b;
+      --iron:      #333941;
+      --iron-dim:  #21252a;
+      --rust:      #c05621;
+      --ember:     #d9824f;
+      --text:      #e6e8eb;
+      --text-dim:  #99a1a9;
+      --text-faint:#5c636b;
+      --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
+
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
-      font-family: system-ui, sans-serif;
-      background: var(--bg);
+      background: var(--base);
+      background-image:
+        radial-gradient(ellipse 900px 500px at 15% -10%, rgba(192, 86, 33, 0.07), transparent 60%),
+        radial-gradient(ellipse 700px 400px at 100% 20%, rgba(192, 86, 33, 0.04), transparent 55%);
       color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.6;
       min-height: 100vh;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      text-align: center;
-      line-height: 1.6;
     }
 
-    .content {
-      max-width: 520px;
+    .wrap {
+      max-width: 480px;
+      width: 100%;
       padding: 2rem 1.5rem;
+      text-align: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      margin-bottom: 2.5rem;
+    }
+    .brand img {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+    }
+    .wordmark {
+      font-family: var(--mono);
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .wordmark span { color: var(--rust); }
+
+    .code {
+      font-family: var(--mono);
+      font-size: clamp(3.5rem, 14vw, 5rem);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--iron);
+      margin: 0;
+      line-height: 1;
     }
 
     h1 {
-      font-size: 6.5rem;
-      font-weight: 800;
-      margin: 0 0 0.5rem;
-      letter-spacing: -0.05em;
-      color: #374151;
-    }
-
-    h2 {
-      font-size: 1.75rem;
+      font-family: var(--mono);
+      font-size: 1.3rem;
       font-weight: 600;
-      margin: 0.25rem 0 1.25rem;
+      margin: 1rem 0 0.75rem;
       color: var(--text);
     }
 
     p {
-      font-size: 1.125rem;
-      color: var(--muted);
-      margin: 0 0 1.75rem;
+      color: var(--text-dim);
+      font-size: 0.98rem;
+      max-width: 38ch;
+      margin: 0 auto 2rem;
     }
 
-    a {
-      display: inline-block;
-      padding: 0.75rem 1.5rem;
-      background: var(--link);
-      color: white;
-      text-decoration: none;
-      border-radius: 6px;
+    .actions {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      font-family: var(--sans);
+      font-size: 0.9rem;
       font-weight: 500;
-      transition: background 0.15s ease;
+      text-decoration: none;
+      padding: 0.65rem 1.15rem;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      transition: background 0.15s ease, border-color 0.15s ease;
     }
 
-    a:hover,
-    a:focus {
-      background: var(--link-hover);
-      outline: none;
+    .btn-primary {
+      background: var(--rust);
+      color: #fff;
     }
+    .btn-primary:hover { background: var(--ember); }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border-color: var(--iron);
+    }
+    .btn-secondary:hover { border-color: var(--text-dim); }
 
     footer {
-      margin-top: 5rem;
-      font-size: 0.875rem;
-      color: var(--muted);
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--iron-dim);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--text-faint);
     }
+
+    a.footer-link { color: var(--text-faint); }
   </style>
 </head>
 <body>
-  <div class="content">
-    <h1>404</h1>
-    <h2>Page Not Found</h2>
-    <p>
-      The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.
-    </p>
-    <a href="/">Back to Home</a>
-  </div>
+  <div class="wrap">
+    <div class="brand">
+      <img src="https://i.ibb.co/3yWbP8yH/IMG-20260821-172541-698.jpg" alt="ferrox">
+      <div class="wordmark">fer<span>rox</span></div>
+    </div>
 
-  <footer>
-    Ferrox • Lightweight Rust HTTP server
-  </footer>
+    <p class="code">404</p>
+    <h1>Page not found</h1>
+    <p>The page you're looking for doesn't exist, was moved, or the link is wrong.</p>
+
+    <div class="actions">
+      <a class="btn btn-primary" href="/">Back home</a>
+      <a class="btn btn-secondary" href="/docs.html">Documentation</a>
+    </div>
+
+    <footer>ferrox · single-binary Rust HTTP server</footer>
+  </div>
 </body>
 </html>

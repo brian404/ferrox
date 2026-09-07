@@ -5,22 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ferrox</title>
   <meta name="description" content="ferrox — a lightweight HTTP server written in Rust">
-  <link rel="icon" href="https://i.ibb.co/3yWbP8yH/IMG-20260821-172541-698.jpg" type="image/jpeg">
+  <link rel="icon" href="/assets/favicon.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --base:      #14181c;
-      --panel:     #1b2126;
-      --panel-2:   #20272d;
-      --iron:      #3a4048;
-      --iron-dim:  #2a3036;
-      --rust:      #b5482f;
-      --ember:     #e8794f;
-      --text:      #eef0f0;
-      --text-dim:  #9aa3a8;
-      --text-faint:#5d666c;
+      --base:      #0d0f12;
+      --panel:     #14171b;
+      --panel-2:   #191d22;
+      --iron:      #333941;
+      --iron-dim:  #21252a;
+      --rust:      #c05621;
+      --ember:     #d9824f;
+      --text:      #e6e8eb;
+      --text-dim:  #99a1a9;
+      --text-faint:#5c636b;
       --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       --sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
@@ -31,8 +31,8 @@
       margin: 0;
       background: var(--base);
       background-image:
-        radial-gradient(ellipse 900px 500px at 15% -10%, rgba(181, 72, 47, 0.10), transparent 60%),
-        radial-gradient(ellipse 700px 400px at 100% 20%, rgba(181, 72, 47, 0.06), transparent 55%);
+        radial-gradient(ellipse 900px 500px at 15% -10%, rgba(192, 86, 33, 0.07), transparent 60%),
+        radial-gradient(ellipse 700px 400px at 100% 20%, rgba(192, 86, 33, 0.04), transparent 55%);
       color: var(--text);
       font-family: var(--sans);
       line-height: 1.6;
@@ -50,8 +50,6 @@
       outline: 2px solid var(--ember);
       outline-offset: 3px;
     }
-
-    /* ---------- Header ---------- */
 
     header {
       display: flex;
@@ -72,6 +70,7 @@
       width: 28px;
       height: 28px;
       display: block;
+      border-radius: 4px;
     }
 
     .wordmark {
@@ -91,36 +90,34 @@
       align-items: center;
       gap: 0.55rem;
       font-family: var(--mono);
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 500;
       letter-spacing: 0.06em;
-      color: #8fdba0;
-      background: rgba(70, 180, 100, 0.08);
-      border: 1px solid rgba(70, 180, 100, 0.25);
+      color: #86c99a;
+      background: rgba(70, 180, 100, 0.07);
+      border: 1px solid rgba(70, 180, 100, 0.2);
       padding: 0.4rem 0.85rem 0.4rem 0.7rem;
       border-radius: 999px;
     }
 
     .dot {
-      width: 7px;
-      height: 7px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       background: #4fd876;
-      box-shadow: 0 0 0 0 rgba(79, 216, 118, 0.6);
-      animation: pulse 2.2s ease-out infinite;
+      box-shadow: 0 0 0 0 rgba(79, 216, 118, 0.5);
+      animation: pulse 2.6s ease-out infinite;
     }
 
     @keyframes pulse {
-      0%   { box-shadow: 0 0 0 0 rgba(79, 216, 118, 0.55); }
-      70%  { box-shadow: 0 0 0 8px rgba(79, 216, 118, 0); }
+      0%   { box-shadow: 0 0 0 0 rgba(79, 216, 118, 0.45); }
+      70%  { box-shadow: 0 0 0 6px rgba(79, 216, 118, 0); }
       100% { box-shadow: 0 0 0 0 rgba(79, 216, 118, 0); }
     }
 
-    /* ---------- Hero ---------- */
-
     .hero h1 {
       font-family: var(--mono);
-      font-size: clamp(1.75rem, 4.5vw, 2.35rem);
+      font-size: clamp(1.7rem, 4.5vw, 2.25rem);
       font-weight: 600;
       margin: 0 0 0.7rem;
       letter-spacing: -0.01em;
@@ -128,7 +125,7 @@
 
     .hero p {
       color: var(--text-dim);
-      font-size: 1.05rem;
+      font-size: 1.03rem;
       max-width: 48ch;
       margin: 0 0 1.75rem;
     }
@@ -141,7 +138,7 @@
 
     .btn {
       font-family: var(--sans);
-      font-size: 0.92rem;
+      font-size: 0.9rem;
       font-weight: 500;
       text-decoration: none;
       padding: 0.65rem 1.15rem;
@@ -163,8 +160,6 @@
       border-color: var(--iron);
     }
     .btn-secondary:hover { border-color: var(--text-dim); }
-
-    /* ---------- Boot log ---------- */
 
     .boot {
       margin: 3rem 0 3.5rem;
@@ -191,7 +186,7 @@
     .boot-titlebar .label {
       margin-left: 0.5rem;
       font-family: var(--mono);
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       color: var(--text-faint);
       letter-spacing: 0.04em;
     }
@@ -199,29 +194,29 @@
     .boot-body {
       padding: 1.1rem 1.3rem 1.3rem;
       font-family: var(--mono);
-      font-size: 0.88rem;
+      font-size: 0.87rem;
     }
 
     .boot-line {
       display: flex;
       gap: 0.6rem;
-      padding: 0.22rem 0;
+      padding: 0.24rem 0;
       color: var(--text-dim);
       opacity: 0;
-      transform: translateY(3px);
-      animation: appear 0.4s ease forwards;
+      transform: translateY(2px);
+      animation: appear 0.5s ease forwards;
     }
 
-    .boot-line .ok   { color: #4fd876; width: 1em; flex-shrink: 0; }
+    .boot-line .ok   { color: #6fbf87; width: 1em; flex-shrink: 0; }
     .boot-line .cmd  { color: var(--text-faint); }
     .boot-line b     { color: var(--text); font-weight: 500; }
 
-    .boot-line:nth-child(1) { animation-delay: 0.05s; }
-    .boot-line:nth-child(2) { animation-delay: 0.35s; }
-    .boot-line:nth-child(3) { animation-delay: 0.65s; }
-    .boot-line:nth-child(4) { animation-delay: 0.95s; }
-    .boot-line:nth-child(5) { animation-delay: 1.25s; }
-    .boot-line:nth-child(6) { animation-delay: 1.55s; }
+    .boot-line:nth-child(1) { animation-delay: 0.08s; }
+    .boot-line:nth-child(2) { animation-delay: 0.40s; }
+    .boot-line:nth-child(3) { animation-delay: 0.72s; }
+    .boot-line:nth-child(4) { animation-delay: 1.04s; }
+    .boot-line:nth-child(5) { animation-delay: 1.36s; }
+    .boot-line:nth-child(6) { animation-delay: 1.68s; }
 
     @keyframes appear {
       to { opacity: 1; transform: translateY(0); }
@@ -233,7 +228,7 @@
       background: var(--ember);
       margin-left: 0.5rem;
       vertical-align: -0.15em;
-      animation: blink 1s step-end infinite;
+      animation: blink 1.3s step-end infinite;
     }
 
     @keyframes blink { 50% { opacity: 0; } }
@@ -242,53 +237,6 @@
       .boot-line { opacity: 1; transform: none; animation: none; }
       .dot, .cursor { animation: none; }
     }
-
-    /* ---------- Routes ---------- */
-
-    section.routes { margin: 3.5rem 0 0; }
-
-    .eyebrow {
-      font-family: var(--mono);
-      font-size: 0.78rem;
-      letter-spacing: 0.1em;
-      color: var(--text-faint);
-      text-transform: uppercase;
-      margin: 0 0 0.9rem;
-    }
-
-    table.routes-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.94rem;
-    }
-
-    .routes-table tr {
-      border-bottom: 1px solid var(--iron-dim);
-    }
-    .routes-table tr:last-child { border-bottom: none; }
-
-    .routes-table td {
-      padding: 0.85rem 0.5rem;
-      vertical-align: top;
-    }
-
-    .method {
-      font-family: var(--mono);
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--rust);
-      white-space: nowrap;
-      padding-right: 1rem;
-    }
-
-    .path {
-      font-family: var(--mono);
-      color: var(--text);
-      white-space: nowrap;
-      padding-right: 1rem;
-    }
-
-    .desc { color: var(--text-dim); }
 
     footer {
       margin-top: 4.5rem;
@@ -299,9 +247,10 @@
       color: var(--text-faint);
     }
 
+    footer a { color: var(--text-faint); }
+
     @media (max-width: 520px) {
       .wrap { padding: 2.75rem 1.25rem 4rem; }
-      .routes-table .desc { display: none; }
     }
   </style>
 </head>
@@ -319,7 +268,7 @@
       <h1>Lightweight HTTP server</h1>
       <p>ferrox is a single-binary HTTP server written in Rust. If you can see this page, the process is running and accepting connections.</p>
       <div class="actions">
-        <a class="btn btn-primary" href="#routes">Documentation</a>
+        <a class="btn btn-primary" href="/docs.html">Documentation</a>
         <a class="btn btn-secondary" href="/health">Health check</a>
       </div>
     </div>
@@ -339,40 +288,7 @@
       </div>
     </div>
 
-    <section class="routes" id="routes">
-      <p class="eyebrow">Routes</p>
-      <table class="routes-table">
-        <tbody>
-          <tr>
-            <td class="method">GET</td>
-            <td class="path">/</td>
-            <td class="desc">This page</td>
-          </tr>
-          <tr>
-            <td class="method">GET</td>
-            <td class="path">/health</td>
-            <td class="desc">Health check — returns 200 when the server is healthy</td>
-          </tr>
-          <tr>
-            <td class="method">GET</td>
-            <td class="path">/hello</td>
-            <td class="desc">Plain-text response for smoke tests</td>
-          </tr>
-          <tr>
-            <td class="method">GET</td>
-            <td class="path">/api/*</td>
-            <td class="desc">Reverse proxy to the configured upstream</td>
-          </tr>
-          <tr>
-            <td class="method">GET</td>
-            <td class="path">/*</td>
-            <td class="desc">Static files from ./public</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <footer>ferrox · single-binary Rust HTTP server</footer>
+    <footer>ferrox · single-binary Rust HTTP server · <a href="/docs.html">documentation</a></footer>
   </div>
 </body>
 </html>

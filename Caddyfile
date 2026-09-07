@@ -1,0 +1,15 @@
+{
+    email brian@techstar.eu.org
+    order rate_limit before reverse_proxy
+}
+
+{$DOMAIN} {
+    rate_limit {
+        zone dynamic {
+            key {http.request.remote.host}
+            events 100
+            window 1m
+        }
+    }
+    reverse_proxy ferrox:3000
+}

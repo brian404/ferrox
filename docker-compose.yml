@@ -1,0 +1,29 @@
+services:
+  ferrox:
+    build: .
+    expose:
+      - "3000"
+    volumes:
+      - ./ferrox.conf:/app/ferrox.conf:ro
+    environment:
+      - RUST_LOG=info
+    restart: unless-stopped
+
+  caddy:
+    build: ./caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN:-0.0.0.0:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - ferrox
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
