@@ -16,13 +16,21 @@ pub fn full_body(bytes: impl Into<Bytes>) -> ResponseBody {
         .boxed()
 }
 
-// Streams a file straight from disk in fixed-size chunks instead of
-// reading it fully into memory first - memory use per request stays
-// constant regardless of file size.
 pub fn file_body(file: File) -> ResponseBody {
     FileBody {
         file,
         buf: vec![0u8; 64 * 1024],
+        remaining: None,
+    }
+    .map_err(BoxError::from)
+    .boxed()
+}
+
+pub fn file_body_range(file: File, len: u64) -> ResponseBody {
+    FileBody {
+        file,
+        buf: vec![0u8; 64 * 1024],
+        remaining: Some(len),
     }
     .map_err(BoxError::from)
     .boxed()
@@ -31,6 +39,7 @@ pub fn file_body(file: File) -> ResponseBody {
 struct FileBody {
     file: File,
     buf: Vec<u8>,
+    remaining: Option<u64>,
 }
 
 impl Body for FileBody {
@@ -42,13 +51,26 @@ impl Body for FileBody {
         cx: &mut Context<'_>,
     ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
         let this = self.get_mut();
-        let mut read_buf = ReadBuf::new(&mut this.buf);
+
+        if this.remaining == Some(0) {
+            return Poll::Ready(None);
+        }
+
+        let cap = match this.remaining {
+            Some(r) => std::cmp::min(this.buf.len() as u64, r) as usize,
+            None => this.buf.len(),
+        };
+
+        let mut read_buf = ReadBuf::new(&mut this.buf[..cap]);
         match Pin::new(&mut this.file).poll_read(cx, &mut read_buf) {
             Poll::Ready(Ok(())) => {
                 let n = read_buf.filled().len();
                 if n == 0 {
                     Poll::Ready(None)
                 } else {
+                    if let Some(r) = this.remaining.as_mut() {
+                        *r -= n as u64;
+                    }
                     Poll::Ready(Some(Ok(Frame::data(Bytes::copy_from_slice(&this.buf[..n])))))
                 }
             }

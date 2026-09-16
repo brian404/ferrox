@@ -1,6 +1,4 @@
 use anyhow::Result;
-use bytes::Bytes;
-use http_body_util::BodyExt;
 use hyper::body::Incoming;
 use hyper::client::conn::http1::Builder as ClientBuilder;
 use hyper::{header, Request, Response, StatusCode};
@@ -13,10 +11,14 @@ use tokio::io::copy_bidirectional;
 use tokio::net::TcpStream;
 use tokio::time::{timeout, Duration};
 
+use bytes::Bytes;
+use http_body_util::BodyExt;
+
 use crate::body::{full_body, ResponseBody};
+use crate::body_limit::{content_length_exceeds_limit, LimitedBody};
 use crate::config::Config;
 
-pub type ProxyClient = Client<HttpConnector, Incoming>;
+pub type ProxyClient = Client<HttpConnector, LimitedBody>;
 
 pub fn build_client() -> ProxyClient {
     Client::builder(TokioExecutor::new()).build_http()
@@ -42,6 +44,16 @@ pub async fn proxy_request(
 
     if is_websocket_upgrade {
         return proxy_websocket(req, upstream, peer).await;
+    }
+
+    // Reject an honestly-declared oversized body before reading any
+    // of it at all - the common case, and the cleanest to respond to.
+    if content_length_exceeds_limit(req.headers()) {
+        tracing::warn!(
+            "Rejected oversized request body (Content-Length) from {}",
+            peer
+        );
+        return Ok(payload_too_large());
     }
 
     let path = req.uri().path().to_string();
@@ -74,6 +86,13 @@ pub async fn proxy_request(
     if let Ok(value) = forwarded_for.parse() {
         headers.insert("X-Forwarded-For", value);
     }
+
+    // Wrapped here, right before forwarding - the defense-in-depth
+    // layer for chunked/no-Content-Length bodies. If a client sneaks
+    // more than the limit past the check above, this aborts the
+    // stream mid-request rather than forwarding it unbounded.
+    let (parts, body) = req.into_parts();
+    let req = Request::from_parts(parts, LimitedBody::new(body));
 
     let upstream_res = match timeout(Duration::from_secs(60), client.request(req)).await {
         Ok(Ok(res)) => res,
@@ -116,6 +135,15 @@ pub async fn proxy_request(
 
     let response = response.body(full_body(body_bytes)).unwrap();
     Ok(crate::headers::add_common_headers(response))
+}
+
+fn payload_too_large() -> Response<ResponseBody> {
+    let response = Response::builder()
+        .status(StatusCode::PAYLOAD_TOO_LARGE)
+        .header(header::CONTENT_TYPE, "text/plain")
+        .body(full_body("Payload Too Large"))
+        .unwrap();
+    crate::headers::add_common_headers(response)
 }
 
 async fn proxy_websocket(

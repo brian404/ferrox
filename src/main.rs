@@ -1,7 +1,4 @@
 use anyhow::Result;
-use hyper::server::conn::http1;
-use hyper::service::service_fn;
-use hyper_util::rt::TokioIo;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -11,16 +8,7 @@ use tokio::signal::unix::{signal, SignalKind};
 use tokio::time::{sleep, Duration, Instant};
 use tracing::{error, info, warn};
 
-mod body;
-mod cache;
-mod config;
-mod handlers;
-mod headers;
-mod router;
-mod security;
-
-use crate::handlers::build_client;
-use crate::router::route;
+use ferrox::{build_client, config, handle_connection, TlsMode, SLOWLORIS_TIMEOUT};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -29,6 +17,7 @@ async fn main() -> Result<()> {
         .init();
 
     info!("Ferrox starting up...");
+ferrox::metrics::init();
 
     let public_dir = std::env::var("FERROX_PUBLIC_DIR").unwrap_or_else(|_| "public".to_string());
     if !std::path::Path::new(&public_dir).is_dir() {
@@ -42,6 +31,17 @@ async fn main() -> Result<()> {
 
     let config = Arc::new(config::load()?);
     let client = build_client();
+
+    #[cfg(feature = "tls")]
+    let tls_mode = match (&config.tls_cert, &config.tls_key) {
+        (Some(cert), Some(key)) => {
+            info!("TLS enabled - cert: {}, key: {}", cert, key);
+            TlsMode::Tls(ferrox::tls::build_acceptor(cert, key)?)
+        }
+        _ => TlsMode::Plain,
+    };
+    #[cfg(not(feature = "tls"))]
+    let tls_mode = TlsMode::Plain;
 
     let addr: SocketAddr = config.listen.parse()?;
     let listener = TcpListener::bind(addr).await?;
@@ -67,25 +67,14 @@ async fn main() -> Result<()> {
                 match accept_result {
                     Ok((stream, peer)) => {
                         info!("New connection from {}", peer);
-                        let io = TokioIo::new(stream);
                         let config = Arc::clone(&config);
                         let client = client.clone();
+                        let tls_mode = tls_mode.clone();
                         let active_connections = Arc::clone(&active_connections);
                         active_connections.fetch_add(1, Ordering::SeqCst);
 
                         tokio::spawn(async move {
-                            let service = service_fn(move |req| {
-                                route(req, Arc::clone(&config), peer, client.clone())
-                            });
-
-                            if let Err(err) = http1::Builder::new()
-                                .serve_connection(io, service)
-                                .with_upgrades()
-                                .await
-                            {
-                                error!("Connection error: {}", err);
-                            }
-
+                            handle_connection(stream, peer, config, client, SLOWLORIS_TIMEOUT, tls_mode).await;
                             active_connections.fetch_sub(1, Ordering::SeqCst);
                         });
                     }

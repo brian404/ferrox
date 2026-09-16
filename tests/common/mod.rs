@@ -1,14 +1,15 @@
- use std::sync::Arc;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
-use ferrox::{build_client, serve_forever, Config};
+use ferrox::{build_client, serve_forever, Config, TlsMode, SLOWLORIS_TIMEOUT};
 
-/// Starts a real ferrox server on an OS-assigned free port and
-/// returns that port. Runs for the lifetime of the test's tokio
-/// runtime - no explicit shutdown needed, since #[tokio::test] tears
-/// its runtime (and every task on it) down when the test returns.
-pub async fn start_test_server() -> u16 {
+/// Starts a real ferrox server on an OS-assigned free port with full
+/// control over its proxy upstream and read-stall timeout. Always
+/// plain HTTP (TlsMode::Plain) - no test exercises TLS itself, since
+/// that's the `tls` feature's job and doesn't change routing logic.
+pub async fn start_test_server_custom(proxy_upstream: &str, read_timeout: Duration) -> u16 {
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
         .expect("failed to bind test listener");
@@ -16,17 +17,27 @@ pub async fn start_test_server() -> u16 {
 
     let config = Arc::new(Config {
         listen: format!("127.0.0.1:{}", port),
-        // Deliberately unroutable - nothing is meant to be listening
-        // here. Tests that need a real upstream response should not
-        // rely on this default.
-        proxy_upstream: "127.0.0.1:1".to_string(),
+        proxy_upstream: proxy_upstream.to_string(),
+        tls_cert: None,
+        tls_key: None,
     });
 
     let client = build_client();
-
-    tokio::spawn(serve_forever(listener, config, client));
+    tokio::spawn(serve_forever(
+        listener,
+        config,
+        client,
+        read_timeout,
+        TlsMode::Plain,
+    ));
 
     port
+}
+
+/// The common case for tests that don't care about proxying or the
+/// read timeout - deliberately unroutable upstream, real 30s timeout.
+pub async fn start_test_server() -> u16 {
+    start_test_server_custom("127.0.0.1:1", SLOWLORIS_TIMEOUT).await
 }
 
 pub struct RawResponse {
@@ -36,10 +47,7 @@ pub struct RawResponse {
 }
 
 /// Sends a raw HTTP/1.1 request over a fresh TCP connection and
-/// parses just enough of the response to be useful in tests - status
-/// code, header block, body bytes. Deliberately not a full HTTP
-/// client crate: ferrox stays dependency-light, and testing it
-/// shouldn't require pulling one in just to talk to it.
+/// parses just enough of the response to be useful in tests.
 pub async fn raw_request(
     port: u16,
     method: &str,
@@ -86,4 +94,55 @@ pub async fn raw_request(
         headers,
         body,
     }
+}
+
+/// A minimal fake WebSocket-upgrade backend for tests: accepts one
+/// connection, reads until the end of the request headers, responds
+/// with 101 Switching Protocols (without computing a real, spec-valid
+/// Sec-WebSocket-Accept - ferrox's proxy layer never inspects that
+/// value either, only the status code, so a real one isn't needed to
+/// test the relay), then echoes back whatever raw bytes arrive after
+/// the upgrade.
+pub async fn start_fake_ws_backend() -> u16 {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+
+    tokio::spawn(async move {
+        if let Ok((mut stream, _)) = listener.accept().await {
+            let mut buf = vec![0u8; 4096];
+            let mut total = 0;
+            loop {
+                let n = stream.read(&mut buf[total..]).await.unwrap_or(0);
+                if n == 0 {
+                    return;
+                }
+                total += n;
+                if buf[..total].windows(4).any(|w| w == b"\r\n\r\n") {
+                    break;
+                }
+            }
+
+            let response = "HTTP/1.1 101 Switching Protocols\r\n\
+                             Upgrade: websocket\r\n\
+                             Connection: Upgrade\r\n\
+                             Sec-WebSocket-Accept: dGVzdA==\r\n\r\n";
+            if stream.write_all(response.as_bytes()).await.is_err() {
+                return;
+            }
+
+            let mut echo_buf = [0u8; 4096];
+            loop {
+                match stream.read(&mut echo_buf).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => {
+                        if stream.write_all(&echo_buf[..n]).await.is_err() {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    port
 }

@@ -1,30 +1,14 @@
-/target
+/target/
 secret.txt
 .env
-ferrox.conf
 *.log
 
-# editor / backup / experimental files
 *.bak
 *.swp
 *.tmp
+*.backup
+
 *.ry
-*.y
-src/co
-# Python junk
-venv/
-src/venv/
-__pycache__/
-*.pyc
+*.ly
 
-# test / dev scripts
-ws.py
-ws_server.py
-test.py
-
-# large test files
-public/bigfile.bin
-
-# backups
-src/*.zip
-ws1.ly
+src/co*

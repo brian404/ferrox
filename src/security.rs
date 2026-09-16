@@ -44,3 +44,39 @@ pub async fn resolve_within_public(candidate: &Path) -> Option<(PathBuf, SystemT
     let mtime = metadata.modified().ok()?;
     Some((resolved, mtime, metadata.len()))
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn allows_normal_paths() {
+        assert!(!contains_dotdot("/index.html"));
+        assert!(!contains_dotdot("/css/style.css"));
+        assert!(!contains_dotdot("/"));
+    }
+
+    #[test]
+    fn blocks_simple_traversal() {
+        assert!(contains_dotdot("/../etc/passwd"));
+        assert!(contains_dotdot("/../../etc/passwd"));
+    }
+
+    #[test]
+    fn blocks_traversal_mid_path() {
+        assert!(contains_dotdot("/public/../../etc/passwd"));
+        assert!(contains_dotdot("/a/../b"));
+    }
+
+    #[test]
+    fn does_not_false_positive_on_dots_in_filenames() {
+        assert!(!contains_dotdot("/file..name.txt"));
+        assert!(!contains_dotdot("/..hidden"));
+        assert!(!contains_dotdot("/version1.2.3.txt"));
+    }
+
+    #[test]
+    fn blocks_bare_dotdot_segment() {
+        assert!(contains_dotdot(".."));
+        assert!(contains_dotdot("/.."));
+    }
+}
