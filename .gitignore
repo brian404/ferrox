@@ -1,14 +1,31 @@
 /target/
-secret.txt
+
+# Rust / build
+**/*.rs.bk
+
+# Python junk
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# env / secrets
 .env
+secret.txt
+ferrox.conf
+
+# logs
 *.log
 
+# backups / temp
 *.bak
 *.swp
 *.tmp
 *.backup
 
+# experiments (BE CAREFUL with wildcards)
 *.ry
 *.ly
 
-src/co*
+# OS
+.DS_Store
