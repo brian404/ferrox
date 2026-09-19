@@ -9,6 +9,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info};
 
 pub mod metrics;
+pub mod compression;
 pub mod body;
 pub mod body_limit;
 pub mod cache;

@@ -12,6 +12,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
 use crate::body::{file_body, file_body_range, full_body, ResponseBody};
 use crate::cache::{self, CachedFile, MAX_CACHEABLE_SIZE};
+use crate::compression;
 use crate::range::{parse_range, RangeOutcome};
 use crate::security;
 
@@ -35,6 +36,10 @@ pub async fn serve_static(req: Request<Incoming>) -> Result<Response<ResponseBod
         .and_then(|v| v.to_str().ok())
         .and_then(|s| httpdate::parse_http_date(s).ok());
 
+    let accepts_gzip = compression::accepts_gzip(
+        req.headers().get(header::ACCEPT_ENCODING).and_then(|v| v.to_str().ok()),
+    );
+
     let subpath = path.trim_start_matches('/');
 
     let file_path = if path == "/" || path.is_empty() {
@@ -48,8 +53,6 @@ pub async fn serve_static(req: Request<Incoming>) -> Result<Response<ResponseBod
         None => return Ok(not_found_page().await),
     };
 
-    // A 304 short-circuits everything below it - no point deciding
-    // between cache/stream/range for a body we're not going to send.
     if let Some(since) = if_modified_since {
         if truncate_to_secs(mtime) <= since {
             return Ok(not_modified(mtime));
@@ -64,12 +67,22 @@ pub async fn serve_static(req: Request<Incoming>) -> Result<Response<ResponseBod
 
     if let Some((contents, content_type, cache_control)) = cache::get(&resolved_path, mtime) {
         tracing::debug!("cache hit: {}", resolved_path.display());
-        return Ok(build_cached_response(contents, content_type, cache_control, mtime, range));
+        return Ok(build_cached_response(
+            contents,
+            content_type,
+            cache_control,
+            mtime,
+            range,
+            accepts_gzip,
+        ));
     }
 
     let content_type = from_path(&resolved_path).first_or_octet_stream().to_string();
     let cache_control = cache_control_for(&resolved_path);
 
+    // Large files skip compression entirely - typically already-
+    // compressed binaries, and re-gzipping a multi-MB body on every
+    // request with no cached result would be wasted CPU.
     if size > MAX_CACHEABLE_SIZE {
         tracing::debug!("streaming (uncached, {} bytes): {}", size, resolved_path.display());
         let mut file = match File::open(&resolved_path).await {
@@ -137,14 +150,16 @@ pub async fn serve_static(req: Request<Incoming>) -> Result<Response<ResponseBod
         },
     );
 
-    Ok(build_cached_response(contents, content_type, cache_control, mtime, range))
+    Ok(build_cached_response(
+        contents,
+        content_type,
+        cache_control,
+        mtime,
+        range,
+        accepts_gzip,
+    ))
 }
 
-/// HTTP-date has whole-second resolution, but a filesystem mtime can
-/// carry sub-second precision - without truncating, a file modified
-/// at (for example) 12:00:00.500 would compare as "newer" than a
-/// client's cached 12:00:00, even though they're effectively the same
-/// second as far as HTTP caching semantics go.
 fn truncate_to_secs(t: SystemTime) -> SystemTime {
     match t.duration_since(UNIX_EPOCH) {
         Ok(d) => UNIX_EPOCH + Duration::from_secs(d.as_secs()),
@@ -167,12 +182,13 @@ fn build_cached_response(
     cache_control: &'static str,
     mtime: SystemTime,
     range: RangeOutcome,
+    accepts_gzip: bool,
 ) -> Response<ResponseBody> {
     let size = contents.len() as u64;
     let last_modified = httpdate::fmt_http_date(mtime);
 
-    let response = if let RangeOutcome::Satisfiable(start, end) = range {
-        Response::builder()
+    if let RangeOutcome::Satisfiable(start, end) = range {
+        let response = Response::builder()
             .status(StatusCode::PARTIAL_CONTENT)
             .header(header::CONTENT_TYPE, content_type)
             .header(header::CONTENT_LENGTH, end - start + 1)
@@ -181,19 +197,40 @@ fn build_cached_response(
             .header(header::CACHE_CONTROL, cache_control)
             .header(header::LAST_MODIFIED, last_modified)
             .body(full_body(contents.slice(start as usize..=end as usize)))
-            .unwrap()
-    } else {
-        Response::builder()
-            .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, content_type)
-            .header(header::CONTENT_LENGTH, size)
-            .header(header::ACCEPT_RANGES, "bytes")
-            .header(header::CACHE_CONTROL, cache_control)
-            .header(header::LAST_MODIFIED, last_modified)
-            .body(full_body(contents))
-            .unwrap()
-    };
+            .unwrap();
+        return crate::headers::add_common_headers(response);
+    }
 
+    let compressible = compression::is_compressible(&content_type);
+
+    let mut builder = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, content_type)
+        .header(header::ACCEPT_RANGES, "bytes")
+        .header(header::CACHE_CONTROL, cache_control)
+        .header(header::LAST_MODIFIED, last_modified);
+
+    if compressible {
+        builder = builder.header(header::VARY, "Accept-Encoding");
+    }
+
+    if compressible && accepts_gzip && contents.len() >= compression::MIN_COMPRESS_SIZE {
+        if let Ok(compressed) = compression::gzip(&contents) {
+            if compressed.len() < contents.len() {
+                let response = builder
+                    .header(header::CONTENT_LENGTH, compressed.len() as u64)
+                    .header(header::CONTENT_ENCODING, "gzip")
+                    .body(full_body(compressed))
+                    .unwrap();
+                return crate::headers::add_common_headers(response);
+            }
+        }
+    }
+
+    let response = builder
+        .header(header::CONTENT_LENGTH, size)
+        .body(full_body(contents))
+        .unwrap();
     crate::headers::add_common_headers(response)
 }
 
