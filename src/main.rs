@@ -12,12 +12,23 @@ use ferrox::{build_client, config, handle_connection, TlsMode, SLOWLORIS_TIMEOUT
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
+    let json_logs = std::env::var("FERROX_LOG_JSON")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+
+    if json_logs {
+        tracing_subscriber::fmt()
+            .json()
+            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+            .init();
+    } else {
+        tracing_subscriber::fmt()
+            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+            .init();
+    }
 
     info!("Ferrox starting up...");
-ferrox::metrics::init();
+    ferrox::metrics::init();
 
     let public_dir = std::env::var("FERROX_PUBLIC_DIR").unwrap_or_else(|_| "public".to_string());
     if !std::path::Path::new(&public_dir).is_dir() {

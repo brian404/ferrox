@@ -3,6 +3,7 @@ use hyper::body::Incoming;
 use hyper::header;
 use hyper::{Method, Request, Response, StatusCode};
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use crate::body::{full_body, ResponseBody};
@@ -10,6 +11,16 @@ use crate::config::Config;
 use crate::handlers::{handle_health, handle_hello, proxy_request, serve_static, ProxyClient};
 use crate::metrics;
 
+static REQUEST_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn next_request_id() -> u64 {
+    REQUEST_COUNTER.fetch_add(1, Ordering::Relaxed)
+}
+
+#[tracing::instrument(
+    skip(req, config, client),
+    fields(request_id = next_request_id(), method = %req.method(), path = %req.uri().path())
+)]
 pub async fn route(
     req: Request<Incoming>,
     config: Arc<Config>,
@@ -19,7 +30,7 @@ pub async fn route(
     let path = req.uri().path();
     let method = req.method().clone();
 
-    tracing::info!("Routing request: {} {}", method, path);
+    tracing::info!("request received");
 
     if method == Method::TRACE {
         return Ok(record(
