@@ -4,15 +4,17 @@
 
 ferrox serves static files efficiently and proxies `/api` traffic to an upstream backend. It is designed for small-to-medium deployments where you want low resource usage, strong defaults against common web attacks, and a clean separation between your static assets and your application API.
 
-```
-┌─────────────┐     ┌──────────────┐     ┌─────────────────┐
-│   Client    │────▶│    ferrox    │────▶│  Upstream API   │
-│             │     │  (static +   │     │  (your backend) │
-│             │◀────│   /api proxy)│◀────│                 │
-└─────────────┘     └──────────────┘     └─────────────────┘
-                           │
-                           ▼
-                    public/ (static files)
+```mermaid
+flowchart LR
+    Client([Client]) -->|HTTP / WebSocket| Ferrox
+
+    subgraph Ferrox["ferrox"]
+        Static["Static Files"]
+        Proxy["/api Proxy"]
+    end
+
+    Static --> Files[(public/)]
+    Proxy -->|Forward| Upstream[Upstream API]
 ```
 
 ## Features
