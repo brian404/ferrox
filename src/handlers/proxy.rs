@@ -35,12 +35,12 @@ pub async fn proxy_request(
     let is_websocket_upgrade = req
         .headers()
         .get(header::UPGRADE)
-        .map_or(false, |v| v.as_bytes().eq_ignore_ascii_case(b"websocket"))
+        .is_some_and(|v| v.as_bytes().eq_ignore_ascii_case(b"websocket"))
         && req
             .headers()
             .get(header::CONNECTION)
             .and_then(|v| v.to_str().ok())
-            .map_or(false, |v| v.to_lowercase().contains("upgrade"));
+            .is_some_and(|v| v.to_lowercase().contains("upgrade"));
 
     if is_websocket_upgrade {
         return proxy_websocket(req, upstream, peer).await;

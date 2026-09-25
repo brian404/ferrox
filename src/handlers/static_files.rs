@@ -13,6 +13,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use crate::body::{file_body, file_body_range, full_body, ResponseBody};
 use crate::cache::{self, CachedFile, MAX_CACHEABLE_SIZE};
 use crate::compression;
+use crate::etag;
 use crate::range::{parse_range, RangeOutcome};
 use crate::security;
 
@@ -36,6 +37,12 @@ pub async fn serve_static(req: Request<Incoming>) -> Result<Response<ResponseBod
         .and_then(|v| v.to_str().ok())
         .and_then(|s| httpdate::parse_http_date(s).ok());
 
+    let if_none_match = req
+        .headers()
+        .get(header::IF_NONE_MATCH)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+
     let accepts_gzip = compression::accepts_gzip(
         req.headers().get(header::ACCEPT_ENCODING).and_then(|v| v.to_str().ok()),
     );
@@ -53,9 +60,14 @@ pub async fn serve_static(req: Request<Incoming>) -> Result<Response<ResponseBod
         None => return Ok(not_found_page().await),
     };
 
+    // Cheap short-circuit using only the mtime we already have - no
+    // cache lookup or disk read needed. The If-None-Match check below
+    // (which does need the actual bytes) catches the remaining case
+    // this can miss: mtime says "modified" but the content is
+    // actually byte-identical.
     if let Some(since) = if_modified_since {
         if truncate_to_secs(mtime) <= since {
-            return Ok(not_modified(mtime));
+            return Ok(not_modified(mtime, None));
         }
     }
 
@@ -74,15 +86,16 @@ pub async fn serve_static(req: Request<Incoming>) -> Result<Response<ResponseBod
             mtime,
             range,
             accepts_gzip,
+            if_none_match,
         ));
     }
 
     let content_type = from_path(&resolved_path).first_or_octet_stream().to_string();
     let cache_control = cache_control_for(&resolved_path);
 
-    // Large files skip compression entirely - typically already-
-    // compressed binaries, and re-gzipping a multi-MB body on every
-    // request with no cached result would be wasted CPU.
+    // Large files skip compression and ETag entirely - typically
+    // already-compressed binaries, and hashing/re-gzipping a multi-MB
+    // body on every request with no cached result would be wasted CPU.
     if size > MAX_CACHEABLE_SIZE {
         tracing::debug!("streaming (uncached, {} bytes): {}", size, resolved_path.display());
         let mut file = match File::open(&resolved_path).await {
@@ -157,6 +170,7 @@ pub async fn serve_static(req: Request<Incoming>) -> Result<Response<ResponseBod
         mtime,
         range,
         accepts_gzip,
+        if_none_match,
     ))
 }
 
@@ -167,12 +181,14 @@ fn truncate_to_secs(t: SystemTime) -> SystemTime {
     }
 }
 
-fn not_modified(mtime: SystemTime) -> Response<ResponseBody> {
-    let response = Response::builder()
+fn not_modified(mtime: SystemTime, etag_value: Option<String>) -> Response<ResponseBody> {
+    let mut builder = Response::builder()
         .status(StatusCode::NOT_MODIFIED)
-        .header(header::LAST_MODIFIED, httpdate::fmt_http_date(mtime))
-        .body(full_body(Bytes::new()))
-        .unwrap();
+        .header(header::LAST_MODIFIED, httpdate::fmt_http_date(mtime));
+    if let Some(etag_value) = etag_value {
+        builder = builder.header(header::ETAG, etag_value);
+    }
+    let response = builder.body(full_body(Bytes::new())).unwrap();
     crate::headers::add_common_headers(response)
 }
 
@@ -183,9 +199,17 @@ fn build_cached_response(
     mtime: SystemTime,
     range: RangeOutcome,
     accepts_gzip: bool,
+    if_none_match: Option<String>,
 ) -> Response<ResponseBody> {
     let size = contents.len() as u64;
     let last_modified = httpdate::fmt_http_date(mtime);
+    let etag_value = etag::compute(&contents);
+
+    if let Some(inm) = &if_none_match {
+        if etag::if_none_match_matches(inm, &etag_value) {
+            return not_modified(mtime, Some(etag_value));
+        }
+    }
 
     if let RangeOutcome::Satisfiable(start, end) = range {
         let response = Response::builder()
@@ -196,6 +220,7 @@ fn build_cached_response(
             .header(header::ACCEPT_RANGES, "bytes")
             .header(header::CACHE_CONTROL, cache_control)
             .header(header::LAST_MODIFIED, last_modified)
+            .header(header::ETAG, etag_value)
             .body(full_body(contents.slice(start as usize..=end as usize)))
             .unwrap();
         return crate::headers::add_common_headers(response);
@@ -208,22 +233,23 @@ fn build_cached_response(
         .header(header::CONTENT_TYPE, content_type)
         .header(header::ACCEPT_RANGES, "bytes")
         .header(header::CACHE_CONTROL, cache_control)
-        .header(header::LAST_MODIFIED, last_modified);
+        .header(header::LAST_MODIFIED, last_modified)
+        .header(header::ETAG, etag_value);
 
     if compressible {
         builder = builder.header(header::VARY, "Accept-Encoding");
     }
 
     if compressible && accepts_gzip && contents.len() >= compression::MIN_COMPRESS_SIZE {
-        if let Ok(compressed) = compression::gzip(&contents) {
-            if compressed.len() < contents.len() {
-                let response = builder
-                    .header(header::CONTENT_LENGTH, compressed.len() as u64)
-                    .header(header::CONTENT_ENCODING, "gzip")
-                    .body(full_body(compressed))
-                    .unwrap();
-                return crate::headers::add_common_headers(response);
-            }
+        if let Ok(compressed) = compression::gzip(&contents)
+            && compressed.len() < contents.len()
+        {
+            let response = builder
+                .header(header::CONTENT_LENGTH, compressed.len() as u64)
+                .header(header::CONTENT_ENCODING, "gzip")
+                .body(full_body(compressed))
+                .unwrap();
+            return crate::headers::add_common_headers(response);
         }
     }
 

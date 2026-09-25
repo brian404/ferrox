@@ -8,6 +8,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info};
 
+pub mod etag;
 pub mod metrics;
 pub mod compression;
 pub mod body;
