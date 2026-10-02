@@ -221,11 +221,8 @@ ferrox/
 
 Contributions are welcome.
 
-## License
+## Contributions
+Ferrox is an experimental HTTP server designed for experimentation and learning about HTTP internals with Rust. Ferrox is not currently production-grade. Feedback and contributions are very welcome!
 
-This project is currently unlicensed.  
-Please add a `LICENSE` file (MIT or Apache-2.0 are common choices for Rust projects) before publishing.
-
----
 
 **ferrox** — small, fast, and careful about the network edge.
