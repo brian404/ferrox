@@ -58,13 +58,13 @@ flowchart LR
 ### Build & Run
 
 ```bash
-git clone https://github.com/yourusername/ferrox.git
+git clone https://github.com/brian404/ferrox.git
 cd ferrox
 
 # Build
 cargo build --release
 
-# Run (creates a default ferrox.conf if none exists)
+# 
 ./target/release/ferrox
 ```
 
@@ -173,10 +173,10 @@ ferrox is intentionally conservative:
 ## Development
 
 ```bash
-# Run tests
+
 cargo test
 
-# Run with debug logging
+
 RUST_LOG=ferrox=debug cargo run
 
 # Build with TLS support
